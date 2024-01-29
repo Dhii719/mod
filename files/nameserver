@@ -1,5 +1,5 @@
 #!/bin/bash
-REPO="https://raw.githubusercontent.com/Dhii719/slowdns/main/"
+REPO="https://raw.githubusercontent.com/Dhii719/mod/ku/"
 ns_domain_cloudflare() {
 	DOMAIN=vipserver.my.id
 	DOMAIN_PATH=$(cat /etc/xray/domain)
