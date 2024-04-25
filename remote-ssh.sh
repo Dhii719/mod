@@ -1,8 +1,8 @@
 bash
 #!/bin/bash
 
-TELEGRAM_TOKEN="TOKEN_BOT_KAMU"
-CHAT_ID="ID_CHAT_TELEGRAM_KAMU"
+TELEGRAM_TOKEN="6903848119:AAGn9zxgTdDvoo4oj1n4azvWJXzDAP8w1Rs"
+CHAT_ID="324500970"
 
 if [ "$1" == "run" ]; then
   shift
