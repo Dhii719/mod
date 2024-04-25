@@ -71,9 +71,9 @@ def restore():
 
 def main():
     # Token bot Telegram
-    token = "TOKEN_BOT_ANDA"
+    token = "6903848119:AAGn9zxgTdDvoo4oj1n4azvWJXzDAP8w1Rs"
     # ID obrolan tempat hasil backup akan dikirim
-    chat_id = "ID_CHAT_ANDA"
+    chat_id = "324500970"
 
     # Tampilkan menu pilihan untuk backup atau restore
     print("Pilih menu:")
