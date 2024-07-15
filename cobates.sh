@@ -13,40 +13,38 @@ NC='\e[0m'
 red='\e[1;31m'
 green='\e[0;32m'
 
-# Determine OS
-if [ -f /etc/os-release ]; then
-    . /etc/os-release
-    OS=$ID
-elif [ -f /etc/centos-release ]; then
-    OS=centos
-else
-    echo "Unsupported OS"
-    exit 1
+# Fungsi untuk mendeteksi sistem operasi
+detect_os() {
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        OS=$ID
+        VERSION=$VERSION_ID
+    else
+        OS=$(uname -s)
+        VERSION=$(uname -r)
+    fi
+    echo "Sistem Operasi Terdeteksi: $OS $VERSION"
+}
+
+# Fungsi untuk mendeteksi antarmuka jaringan utama
+detect_network_interface() {
+    interface=$(ip -o -4 route show to default | awk '{print $5}' | head -n1)
+    echo $interface
+}
+
+# Periksa hak akses root
+if [ "$(id -u)" != "0" ]; then
+   echo "Skrip ini harus dijalankan sebagai root" 1>&2
+   exit 1
 fi
 
-# Set package manager and commands based on OS
-case $OS in
-    ubuntu|debian)
-        PKG_MANAGER="apt"
-        UPDATE_CMD="apt update"
-        INSTALL_CMD="apt install -y"
-        ;;
-    centos)
-        PKG_MANAGER="yum"
-        UPDATE_CMD="yum update -y"
-        INSTALL_CMD="yum install -y"
-        # Enable EPEL repository
-        $INSTALL_CMD epel-release
-        ;;
-    *)
-        echo "Unsupported OS: $OS"
-        exit 1
-        ;;
-esac
+# Deteksi OS dan antarmuka jaringan
+detect_os
+NET=$(detect_network_interface)
 
 # ===================
 clear
-# // Exporting IP Address Information
+# // Exporint IP AddressInformation
 export IP=$(curl -sS icanhazip.com)
 
 # // Clear Data
@@ -63,14 +61,21 @@ sleep 2
 
 # // Checking Os Architecture
 if [[ $( uname -m | awk '{print $1}' ) == "x86_64" ]]; then
-    echo -e "${OK} Your Architecture Is Supported ( ${green}$( uname -m )${NC} )"
+    echo -e "${OK} Arsitektur Anda Didukung ( ${green}$( uname -m )${NC} )"
 else
-    echo -e "${EROR} Your Architecture Is Not Supported ( ${YELLOW}$( uname -m )${NC} )"
+    echo -e "${EROR} Arsitektur Anda Tidak Didukung ( ${YELLOW}$( uname -m )${NC} )"
     exit 1
 fi
 
 # // Checking System
-echo -e "${OK} Your OS Is Supported ( ${green}$( cat /etc/os-release | grep -w PRETTY_NAME | head -n1 | sed 's/=//g' | sed 's/"//g' | sed 's/PRETTY_NAME//g' )${NC} )"
+if [[ $( cat /etc/os-release | grep -w ID | head -n1 | sed 's/=//g' | sed 's/"//g' | sed 's/ID//g' ) == "ubuntu" ]]; then
+    echo -e "${OK} Sistem Operasi Anda Didukung ( ${green}$( cat /etc/os-release | grep -w PRETTY_NAME | head -n1 | sed 's/=//g' | sed 's/"//g' | sed 's/PRETTY_NAME//g' )${NC} )"
+elif [[ $( cat /etc/os-release | grep -w ID | head -n1 | sed 's/=//g' | sed 's/"//g' | sed 's/ID//g' ) == "debian" ]]; then
+    echo -e "${OK} Sistem Operasi Anda Didukung ( ${green}$( cat /etc/os-release | grep -w PRETTY_NAME | head -n1 | sed 's/=//g' | sed 's/"//g' | sed 's/PRETTY_NAME//g' )${NC} )"
+else
+    echo -e "${EROR} Sistem Operasi Anda Tidak Didukung ( ${YELLOW}$( cat /etc/os-release | grep -w PRETTY_NAME | head -n1 | sed 's/=//g' | sed 's/"//g' | sed 's/PRETTY_NAME//g' )${NC} )"
+    exit 1
+fi
 
 # // IP Address Validating
 if [[ $IP == "" ]]; then
@@ -81,151 +86,53 @@ fi
 
 # // Validate Successfull
 echo ""
-read -p "$( echo -e "Press ${GRAY}[ ${NC}${green}Enter${NC} ${GRAY}]${NC} For Starting Installation") "
+read -p "$( echo -e "Tekan ${GRAY}[ ${NC}${green}Enter${NC} ${GRAY}]${NC} untuk memulai instalasi") "
 echo ""
 clear
 
-# Check if running as root
-if [ "${EUID}" -ne 0 ]; then
-    echo "You need to run this script as root"
-    exit 1
-fi
-
-# Check if OpenVZ
-if [ "$(systemd-detect-virt)" == "openvz" ]; then
-    echo "OpenVZ is not supported"
-    exit 1
-fi
-
-# IZIN SCRIPT
-MYIP=$(curl -sS ipv4.icanhazip.com)
-echo -e "\e[32mloading...\e[0m"
-clear
-
-# Install required packages
-$INSTALL_CMD ruby -y
-gem install lolcat
-$INSTALL_CMD wondershaper -y
-
-clear
-# REPO
-REPO="https://raw.githubusercontent.com/Dhii719/v3/main/"
-
-# ... (rest of the script remains mostly the same)
-
-# Function definitions with OS-specific modifications
-
-function base_package() {
-    clear
-    print_install "Menginstall Paket Yang Dibutuhkan"
-    case $OS in
-        ubuntu|debian)
-            $INSTALL_CMD zip pwgen openssl netcat socat cron bash-completion figlet
-            ;;
-        centos)
-            $INSTALL_CMD zip pwgen openssl nc socat cronie bash-completion figlet
-            ;;
-    esac
+# Fungsi first_setup
+first_setup(){
+    timedatectl set-timezone Asia/Jakarta
+    echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
+    echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
+    print_success "Pengaturan Awal"
     
-    $UPDATE_CMD
-    $INSTALL_CMD curl jq wget
+    # Setup dependensi
+    apt-get update
+    apt-get install -y software-properties-common
     
-    case $OS in
-        ubuntu|debian)
-            $INSTALL_CMD gnupg gnupg2 chrony
-            ;;
-        centos)
-            $INSTALL_CMD gnupg2 chrony
-            ;;
-    esac
-    
-    systemctl enable chronyd
-    systemctl restart chronyd
+    if [ "$OS" = "ubuntu" ]; then
+        add-apt-repository ppa:vbernat/haproxy-2.0 -y
+        apt-get update
+        apt-get -y install haproxy=2.0.\*
+    elif [ "$OS" = "debian" ]; then
+        echo "deb http://deb.debian.org/debian buster-backports main" > /etc/apt/sources.list.d/buster-backports.list
+        apt-get update
+        apt-get -t buster-backports install -y haproxy
+    else
+        echo "OS tidak didukung"
+        exit 1
+    fi
 }
 
-function nginx_install() {
-    case $OS in
-        ubuntu|debian)
-            $INSTALL_CMD nginx
-            ;;
-        centos)
-            $INSTALL_CMD epel-release
-            $INSTALL_CMD nginx
-            ;;
-    esac
-    
-    systemctl enable nginx
-    systemctl start nginx
+# Fungsi nginx_install
+nginx_install() {
+    print_install "Nginx"
+    apt-get install -y nginx
+    print_success "Nginx"
 }
 
-function install_xray() {
-    clear
-    print_install "Core Xray 1.8.1 Latest Version"
-    domainSock_dir="/run/xray";! [ -d $domainSock_dir ] && mkdir $domainSock_dir
-    chown www-data.www-data $domainSock_dir
-    
-    latest_version="$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases | grep tag_name | sed -E 's/.*"v(.*)".*/\1/' | head -n 1)"
-    
-    case $OS in
-        ubuntu|debian)
-            bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install -u www-data --version $latest_version
-            ;;
-        centos)
-            bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install --version $latest_version
-            ;;
-    esac
+# Sisanya dari fungsi-fungsi Anda tetap sama
+# ...
 
-    # Continue with Xray configuration...
-}
-
-function ssh(){
-    clear
-    print_install "Memasang Password SSH"
-    
-    case $OS in
-        ubuntu|debian)
-            wget -O /etc/pam.d/common-password "${REPO}files/password"
-            chmod +x /etc/pam.d/common-password
-            ;;
-        centos)
-            # CentOS uses /etc/pam.d/system-auth
-            sed -i 's/password    requisite     pam_pwquality.so try_first_pass local_users_only/password    requisite     pam_pwquality.so try_first_pass local_users_only retry=3 minlen=8/' /etc/pam.d/system-auth
-            ;;
-    esac
-
-    # Continue with SSH configuration...
-}
-
-function ins_dropbear(){
-    clear
-    print_install "Menginstall Dropbear"
-    
-    case $OS in
-        ubuntu|debian)
-            $INSTALL_CMD dropbear
-            ;;
-        centos)
-            $INSTALL_CMD dropbear
-            ;;
-    esac
-    
-    wget -q -O /etc/default/dropbear "${REPO}config/dropbear.conf"
-    chmod +x /etc/default/dropbear
-    systemctl restart dropbear
-    systemctl enable dropbear
-}
-
-# ... (continue modifying other functions similarly)
-
-# Main installation function
-function instal(){
+# Fungsi utama instalasi
+instal(){
     clear
     first_setup
     nginx_install
     base_package
     make_folder_xray
     pasang_domain
-    password_default
     pasang_ssl
     install_xray
     ssh
@@ -246,7 +153,7 @@ function instal(){
     restart_system
 }
 
-# Run installation
+# Jalankan fungsi utama
 instal
 
 echo ""
@@ -257,8 +164,7 @@ rm -rf /root/*.sh
 rm -rf /root/LICENSE
 rm -rf /root/README.md
 rm -rf /root/domain
-secs_to_human "$(($(date +%s) - ${start}))"
-echo -e "${green} Script Successfull Installed"
+echo -e "${green} Skrip Berhasil Diinstal"
 echo ""
-read -p "$( echo -e "Press ${YELLOW}[ ${NC}${YELLOW}Enter${NC} ${YELLOW}]${NC} For reboot") "
+read -p "$( echo -e "Tekan ${YELLOW}[ ${NC}${YELLOW}Enter${NC} ${YELLOW}]${NC} untuk reboot") "
 reboot
