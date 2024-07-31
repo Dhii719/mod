@@ -141,19 +141,6 @@ proxies:
       headers:
         Host: indo1.sengmurahyo.my.id
     udp: true
- - name: kontol
-    server: 104.18.2.2
-    port: 443
-    type: trojan
-    password: 6b462c69-28f9-49d2-8199-bc7a81b41819
-    skip-cert-verify: true
-    sni: indo1.sengmurahyo.my.id
-    network: ws
-    ws-opts:
-      path: /trojan-ws
-      headers:
-        Host: indo1.sengmurahyo.my.id
-    udp: true
 proxy-groups:
   - name: FASTSSH-SSHKIT-HOWDY
     type: select
